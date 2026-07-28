@@ -58,8 +58,11 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "src.app:app",
-        host="0.0.0.0",
+        host="localhost",
         port=8000,
         reload=True,
         log_level="info",
     )
+
+#Home
+#http://localhost:8000/api/v1/about
