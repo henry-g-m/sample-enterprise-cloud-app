@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.14+
 - Docker and Docker Compose
 - Git
 - Make (optional, for using Makefile commands)
@@ -47,7 +47,7 @@ pip install -r requirements-dev.txt
 # Run development server
 make dev
 # or
-uvicorn src.app:app --reload --host 0.0.0.0 --port 8000
+uvicorn src.app:app --reload --host localhost --port 8000
 ```
 
 The API will be available at `http://localhost:8000`
