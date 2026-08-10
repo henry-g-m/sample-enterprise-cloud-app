@@ -9,3 +9,9 @@ Check logs:
 docker compose logs -f
 
 To see all commands, check "Makefile"
+
+
+== Github Repository ==
+gh run list --branch human/dev --limit 5     # see recent runs and status
+gh run watch                                  # live-follow the latest run
+gh run view --web                             # open it in the browser
