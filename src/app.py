@@ -1,5 +1,6 @@
 """FastAPI application factory and configuration."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -12,7 +13,7 @@ from src.core.middleware import add_request_logging_middleware
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application startup and shutdown events."""
     # Startup
     setup_logging()

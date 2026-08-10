@@ -3,10 +3,10 @@
 import logging
 import logging.config
 import sys
-from typing import Any
+from typing import cast
 
 import structlog
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger.json import JsonFormatter
 
 from src.config.settings import Settings
 
@@ -21,7 +21,7 @@ def setup_logging() -> None:
         "disable_existing_loggers": False,
         "formatters": {
             "json": {
-                "()": jsonlogger.JsonFormatter,
+                "()": JsonFormatter,
                 "format": "%(timestamp)s %(name)s %(levelname)s %(message)s",
             },
             "standard": {
@@ -68,4 +68,4 @@ def setup_logging() -> None:
 
 def get_logger(name: str) -> structlog.typing.FilteringBoundLogger:
     """Get a named logger instance."""
-    return structlog.get_logger(name)
+    return cast(structlog.typing.FilteringBoundLogger, structlog.get_logger(name))
