@@ -1,0 +1,11 @@
+To start the application:
+Start docker
+
+docker compose up -d
+
+http://localhost:8000/api/v1/about
+
+Check logs:
+docker compose logs -f
+
+To see all commands, check "Makefile"

@@ -19,7 +19,7 @@ Infrastructure Layer (external services, cache, DB)
 
 ### Technology Stack
 - **Framework**: FastAPI (async REST API framework)
-- **Python**: 3.11+ (with type hints)
+- **Python**: 3.14+ (with type hints)
 - **Containerization**: Docker (multi-stage builds)
 - **Orchestration**: Azure Container Apps
 - **Caching**: Redis (Azure Cache for Redis)

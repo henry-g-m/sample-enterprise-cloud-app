@@ -86,7 +86,7 @@ Observability Layer (All Components):
 | Component | Technology | Rationale |
 |-----------|-----------|-----------|
 | **Framework** | FastAPI | Modern, async-first, auto-docs, high performance |
-| **Python Version** | 3.11+ | LTS support until 2027, type hints maturity |
+| **Python Version** | 3.14+ | Latest stable release, type hints maturity |
 | **Web Server** | Uvicorn (ASGI) | High performance, async-native |
 | **Testing** | pytest | Industry standard, excellent plugins |
 | **Type Checking** | mypy | Static type safety, early error detection |
