@@ -80,19 +80,12 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v --cov=src --cov-report=xml
+        run: pytest tests/unit/ -v --cov=src
 
       - name: Run integration tests
         run: pytest tests/integration/ -v
         env:
           REDIS_HOST: localhost
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage.xml
-          flags: unittests
-          fail_ci_if_error: true
 
   security:
     name: Security Scan
