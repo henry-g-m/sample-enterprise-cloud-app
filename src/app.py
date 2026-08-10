@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.v1.routes import router as v1_router
 from src.config.logging_config import setup_logging
 from src.config.settings import Settings
+from src.core.exceptions import register_exception_handlers
 from src.core.middleware import add_request_logging_middleware
 
 
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
     )
 
     add_request_logging_middleware(app)
+    register_exception_handlers(app)
 
     # Include routers
     app.include_router(v1_router, prefix="/api/v1")

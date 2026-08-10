@@ -10,8 +10,18 @@ docker compose logs -f
 
 To see all commands, check "Makefile"
 
+== Run Tests ==
+pytest -v --maxfail=1 --disable-warnings
+## Run all tests
+	pytest tests/ -v
+## Run unit tests only
+	pytest tests/unit/ -v
 
-== Github Repository ==
+== GitHub Repository ==
 gh run list --branch human/dev --limit 5     # see recent runs and status
 gh run watch                                  # live-follow the latest run
 gh run view --web                             # open it in the browser
+
+
+==Re-deploying the application locally===
+
