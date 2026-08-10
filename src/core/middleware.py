@@ -10,7 +10,7 @@ from fastapi.responses import Response
 logger = structlog.get_logger(__name__)
 
 
-async def request_logging_middleware(
+async def  request_logging_middleware(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
     """Middleware to log HTTP requests and responses."""

@@ -7,6 +7,8 @@ import structlog
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from src.utils.decorators import cache_response
+
 logger = structlog.get_logger(__name__)
 
 about_router = APIRouter()
@@ -23,6 +25,7 @@ class AboutResponse(BaseModel):
 
 
 @about_router.get("", response_model=AboutResponse)
+@cache_response(ttl_seconds=30, prefix="about")
 async def get_about() -> dict[str, Any]:
     """Get information about the application.
 

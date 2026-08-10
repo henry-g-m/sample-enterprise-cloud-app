@@ -7,6 +7,8 @@ import structlog
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from src.infrastructure.cache.redis_client import get_redis_client
+
 logger = structlog.get_logger(__name__)
 
 health_router = APIRouter()
@@ -50,8 +52,11 @@ async def readiness() -> dict[str, Any]:
     """
     logger.info("readiness_check")
 
-    # TODO: Add Redis connection check
-    dependencies = {"database": "unknown", "cache": "unknown"}
+    cache_healthy = await get_redis_client().ping()
+    dependencies = {
+        "database": "not_configured",
+        "cache": "healthy" if cache_healthy else "unhealthy",
+    }
 
     return {
         "ready": True,

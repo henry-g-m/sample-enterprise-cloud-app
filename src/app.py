@@ -11,6 +11,7 @@ from src.config.logging_config import setup_logging
 from src.config.settings import Settings
 from src.core.exceptions import register_exception_handlers
 from src.core.middleware import add_request_logging_middleware
+from src.infrastructure.cache.redis_client import close_redis_client
 
 
 @asynccontextmanager
@@ -21,6 +22,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     print("✓ Application started")
     yield
     # Shutdown
+    await close_redis_client()
     print("✓ Application shutdown")
 
 
