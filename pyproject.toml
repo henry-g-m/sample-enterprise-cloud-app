@@ -164,7 +164,7 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "if t.TYPE_CHECKING:",
 ]
-fail_under = 60
+fail_under = 75
 precision = 2
 
 [tool.isort]
