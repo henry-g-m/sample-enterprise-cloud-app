@@ -2,7 +2,7 @@ name: CI - Python
 
 on:
   push:
-    branches: [master, human/dev, claude/**]
+    branches: [master, human/dev]
   pull_request:
     branches: [master, human/dev]
 
