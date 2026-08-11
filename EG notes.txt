@@ -18,6 +18,8 @@ pytest -v --maxfail=1 --disable-warnings
 	pytest tests/unit/ -v
 
 == GitHub Repository ==
+https://github.com/henry-g-m/sample-enterprise-cloud-app
+CLI commands for GitHub Actions:
 gh run list --branch human/dev --limit 5     # see recent runs and status
 gh run watch                                  # live-follow the latest run
 gh run view --web                             # open it in the browser

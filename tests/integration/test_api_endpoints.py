@@ -44,7 +44,7 @@ class TestAboutEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Enterprise Demo Cloud App"
-        assert data["version"] == "0.1.0"
+        assert data["version"] == "0.1.1"
         assert "description" in data
         assert "timestamp" in data
         assert "environment" in data
