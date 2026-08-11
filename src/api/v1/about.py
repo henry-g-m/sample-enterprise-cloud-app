@@ -3,10 +3,11 @@
 from datetime import datetime
 from typing import Any
 
+import structlog
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-import structlog
+from src.utils.decorators import cache_response
 
 logger = structlog.get_logger(__name__)
 
@@ -24,6 +25,7 @@ class AboutResponse(BaseModel):
 
 
 @about_router.get("", response_model=AboutResponse)
+@cache_response(ttl_seconds=30, prefix="about")
 async def get_about() -> dict[str, Any]:
     """Get information about the application.
 
@@ -33,7 +35,7 @@ async def get_about() -> dict[str, Any]:
 
     return {
         "name": "Enterprise Demo Cloud App",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "description": "Simple REST API deployed to Azure with enterprise best practices",
         "timestamp": datetime.utcnow().isoformat(),
         "environment": "development",  # TODO: Load from settings

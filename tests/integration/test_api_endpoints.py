@@ -1,7 +1,5 @@
 """Integration tests for API endpoints."""
 
-import pytest
-
 
 class TestHealthEndpoints:
     """Test health check endpoints."""
@@ -46,7 +44,7 @@ class TestAboutEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Enterprise Demo Cloud App"
-        assert data["version"] == "0.1.0"
+        assert data["version"] == "0.1.1"
         assert "description" in data
         assert "timestamp" in data
         assert "environment" in data
@@ -59,3 +57,23 @@ class TestAboutEndpoint:
         required_fields = ["name", "version", "description", "timestamp", "environment"]
         for field in required_fields:
             assert field in data, f"Missing required field: {field}"
+
+
+class TestMetricsEndpoint:
+    """Test the Prometheus scrape endpoint."""
+
+    def test_metrics_returns_200_in_prometheus_format(self, client):
+        """Test /metrics returns 200 with Prometheus text exposition content."""
+        response = client.get("/metrics")
+
+        assert response.status_code == 200
+        assert "text/plain" in response.headers["content-type"]
+        assert "python_gc_objects_collected_total" in response.text
+
+    def test_metrics_reflects_recorded_requests(self, client):
+        """Test a prior request shows up in the http_requests_total series."""
+        client.get("/api/v1/about")
+
+        response = client.get("/metrics")
+
+        assert 'path="/api/v1/about"' in response.text

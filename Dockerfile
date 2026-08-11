@@ -3,7 +3,7 @@
 # ============================================================================
 # Stage 1: Builder
 # ============================================================================
-FROM python:3.11-slim as builder
+FROM python:3.14-slim AS builder
 
 WORKDIR /build
 
@@ -14,15 +14,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements
 COPY requirements.txt .
+COPY requirements-dev.txt .
 
 # Create wheels
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /build/wheels -r requirements.txt
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /build/wheels -r requirements-dev.txt
 
 
 # ============================================================================
 # Stage 2: Runtime
 # ============================================================================
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser
@@ -37,6 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy wheels from builder
 COPY --from=builder /build/wheels /wheels
 COPY --from=builder /build/requirements.txt .
+COPY --from=builder /build/requirements-dev.txt .
 
 # Install Python dependencies from wheels
 RUN pip install --no-cache /wheels/*

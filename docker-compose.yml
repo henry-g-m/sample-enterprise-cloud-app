@@ -46,8 +46,41 @@ services:
       retries: 3
       start_period: 5s
 
+  # Metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: demo-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - demo-network
+
+  # Dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: demo-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - demo-network
+
 volumes:
   redis_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   demo-network:

@@ -1,0 +1,97 @@
+= Phase 3 (Caching & Performance) =
+
+  src/infrastructure/cache/redis_client.py (new) — RedisClient wraps redis.asyncio with a pooled connection (max_connections=20, TLS via SSLConnection when redis_ssl is set). get/set/delete/delete_pattern/ping all fail open: a
+  Redis outage logs a warning and behaves like a cache miss instead of raising, since the cache is a performance layer, not a source of truth. get_redis_client()/close_redis_client() manage a process-wide singleton.
+
+  src/utils/decorators.py (new) — @cache_response(ttl_seconds=..., prefix=...) hashes a function's args/kwargs into a cache key, checks Redis first, and falls back to calling the function directly if the arguments aren't
+  JSON-serializable (e.g. a Request object) or Redis is down.
+
+  Applied it: /about now uses @cache_response(ttl_seconds=30) — verified the timestamp stays frozen across repeated calls within the TTL, and I/O keeps working (fresh, uncached) when Redis is stopped.
+
+  health.py readiness probe: replaced the "cache": "unknown"
+  optional infrastructure, not a hard dependency. Flag if you'd rather it gate readiness.
+
+  app.py: closes the Redis connection pool on shutdown via close_redis_client().
+
+  Tests (30 total now, 94.85% coverage): test_redis_client.py (fail-open paths + singleton lifecycle, using a fast-refusing unreachable port), test_decorators.py (cache hit/miss/key-uniqueness/fallback via a fake in-memory
+  client), test_redis_integration.py (real Redis round-trip, skips if unreachable).
+
+  Bug caught and fixed along the way: the singleton's connection pool is bound to the event loop that created it, and pytest-asyncio opens a new loop per test — second test in a session hit RuntimeError: Event loop is closed.
+  Fixed with an autouse fixture in tests/conftest.py that closes the singleton after every test, forcing a fresh reconnect per test's loop (this is also relevant for any future multi-loop deployment scenario, though production
+  only ever runs one loop).
+
+= Metrics and Observability =
+
+❯ show me how can I explore the metrics and use the observability feature
+
+  Ran 1 shell command
+
+● Here's how to explore observability locally (this app doesn't expose a Prometheus-style /metrics endpoint — metrics are only visible via console output in debug mode, or exported to Azure Application Insights if configured).
+
+  1. Make sure Redis is up
+
+  docker compose up -d redis
+
+  2. Run the app in debug mode
+
+  Debug mode is what attaches the console exporters for spans and metrics (tracing.py/metrics.py only add ConsoleSpanExporter/ConsoleMetricExporter when settings.debug is True — otherwise telemetry is generated but not printed
+  anywhere, to avoid flooding prod-like logs).
+
+  PowerShell:
+  $env:DEBUG = "true"
+  make dev
+  or directly:
+  $env:DEBUG = "true"
+  uvicorn src.app:app --reload --host 0.0.0.0 --port 8000
+
+  3. Generate traffic
+
+  Hit a couple endpoints — browser, curl, or Invoke-WebRequest:
+  curl http://localhost:8000/api/v1/about
+  curl http://localhost:8000/api/v1/about      # second call should be a cache hit
+  curl http://localhost:8000/api/v1/health/ready
+
+  4. What to look for in the console output
+
+  - Structured logs (JSON per line via structlog): each http_request log line includes request_id, trace_id, span_id, duration_ms, status_code.
+  - Spans (printed by ConsoleSpanExporter as each request completes): a JSON blob per span, e.g. "name": "GET /api/v1/about", with a context.trace_id — match it against a log line's trace_id to tie a specific log entry to its
+  exact request/span.
+  - Metrics (printed by ConsoleMetricExporter every 30 seconds, not per-request — metrics.py:32-36): a batch dump showing http.requests.total, http.request.duration, cache.hits.total, cache.misses.total, each broken down by the
+  attributes they were recorded with (method/path/status_code, or cache prefix).
+
+  5. Correlation ID in the response
+
+  curl -D - http://localhost:8000/api/v1/about
+  Look for the x-request-id header — same value you'll find in that request's log lines.
+
+  6. Cache hit/miss in practice
+
+  Watch cache.hits.total/cache.misses.total climb as you repeat the /about call within its 30s TTL (about.py's @cache_response(ttl_seconds=30, ...)), then reset to a miss once the TTL expires.
+
+
+= Promotheus=
+
+The full stack is up via docker compose up -d --build (I rebuilt the app image since requirements.txt changed):
+
+┌────────────┬───────────────────────┬────────────────────────────────────────────────────────────────┐
+│  Service   │          URL          │                            Purpose                             │
+├────────────┼───────────────────────┼────────────────────────────────────────────────────────────────┤
+│ App        │ http://localhost:8000 │ Your API (already exposes /metrics)                            │
+├────────────┼───────────────────────┼────────────────────────────────────────────────────────────────┤
+│ Prometheus │ http://localhost:9090 │ Scrapes the app every 15s                                      │
+├────────────┼───────────────────────┼────────────────────────────────────────────────────────────────┤
+│ Grafana    │ http://localhost:3000 │ admin / admin (you'll be prompted to change it on first login) │
+└────────────┴───────────────────────┴────────────────────────────────────────────────────────────────┘
+
+What I built
+
+/metrics endpoint (src/api/metrics.py) — new, unversioned, root-level route (Prometheus convention). Serves prometheus_client.generate_latest() output. Wired via metrics.py's configure_local_metrics() now always attaching a PrometheusMetricReader() to the OTel MeterProvider (previously only the debug-gated console exporter existed) — so the same http_requests_total/cache_hits_total/etc. instruments you were already recording now show up in Prometheus format, no duplicate instrumentation.
+
+One dependency snag along the way: the latest opentelemetry-exporter-prometheus (0.65b0) requires opentelemetry-sdk~=1.44.0, which conflicts with everything else in this project pinned to ~=1.43.0 (Azure Monitor, FastAPI/logging instrumentation). Found and used opentelemetry-exporter-prometheus==0.64b0 instead — it pins opentelemetry-sdk~=1.43.0 exactly, installs with zero conflicts (pip check clean). Added both it and its prometheus-client dependency to requirements.txt.
+
+Prometheus + Grafana — added to docker-compose.yml:
+- prometheus service, config at infrastructure/monitoring/prometheus/prometheus.yml, scraping app:8000/metrics every 15s
+- grafana service, auto-provisioned (no manual clicking needed) via infrastructure/monitoring/grafana/provisioning/ — a Prometheus datasource pointing at http://prometheus:9090, and a dashboard provider pointing at infrastructure/monitoring/grafana/dashboards/
+- app-overview.json — a 4-panel dashboard: HTTP request rate by path, p95 request duration by path, cache hit ratio, requests by status code
+
+I verified the whole pipeline live: generated traffic, confirmed Prometheus scraped it (up target, correct counts), confirmed Grafana's provisioned datasource + dashboard loaded with all 4 panels, and confirmed a real panel query resolves through Grafana's proxy with live-moving data (cache hit ratio went from 0 to 0.667 as I spread requests over time — rate() needs 2+ scrapes spanning a change, so a single burst reads as 0, which is normal Prometheus behavior, not a bug).

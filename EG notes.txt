@@ -1,0 +1,49 @@
+To start the application:
+Start docker
+
+docker compose up -d
+
+http://localhost:8000/api/v1/about
+
+Check logs:
+docker compose logs -f
+
+To see all commands, check "Makefile"
+
+== Run Tests ==
+pytest -v --maxfail=1 --disable-warnings
+## Run all tests
+	pytest tests/ -v
+## Run unit tests only
+	pytest tests/unit/ -v
+
+== GitHub Repository ==
+https://github.com/henry-g-m/sample-enterprise-cloud-app
+CLI commands for GitHub Actions:
+gh run list --branch human/dev --limit 5     # see recent runs and status
+gh run watch                                  # live-follow the latest run
+gh run view --web                             # open it in the browser
+
+
+==Re-loading the applicati on locally===
+With docker compose, you can re-load the application without restarting the container. This is useful for development when you make changes to the code.
+   docker compose restart app
+With uvicorn
+    uvicorn src.app:app --reload --host 0.0.0.0 --port 8000
+
+== Start Redis only ==
+    docker compose up -d redis
+
+== Monitoring ==
+    docker compose up -d prometheus grafana
+    http://localhost:3000/dashboards
+
+┌────────────┬───────────────────────┬────────────────────────────────────────────────────────────────┐
+│  Service   │          URL          │                            Purpose                             │
+├────────────┼───────────────────────┼────────────────────────────────────────────────────────────────┤
+│ App        │ http://localhost:8000 │ Your API (already exposes /metrics)                            │
+├────────────┼───────────────────────┼────────────────────────────────────────────────────────────────┤
+│ Prometheus │ http://localhost:9090 │ Scrapes the app every 15s                                      │
+├────────────┼───────────────────────┼────────────────────────────────────────────────────────────────┤
+│ Grafana    │ http://localhost:3000 │ admin / admin                                                  │
+└────────────┴───────────────────────┴────────────────────────────────────────────────────────────────┘

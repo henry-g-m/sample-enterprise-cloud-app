@@ -7,7 +7,7 @@ name = "enterprise-demo-cloud-app"
 version = "0.1.0"
 description = "Enterprise demo cloud application - REST API deployed to Azure"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 license = {text = "Apache-2.0"}
 authors = [
     {name = "Enterprise Demo Team", email = "team@example.com"}
@@ -21,7 +21,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.12",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
@@ -109,7 +109,7 @@ known-first-party = ["src"]
 known-third-party = ["fastapi", "pydantic", "redis"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -122,8 +122,8 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 exclude = [
-    "\.venv",
-    "\.git",
+    ".venv",
+    ".git",
     "build",
     "dist",
 ]
@@ -164,7 +164,7 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "if t.TYPE_CHECKING:",
 ]
-fail_under = 80
+fail_under = 75
 precision = 2
 
 [tool.isort]

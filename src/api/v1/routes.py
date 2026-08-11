@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter
 
-from src.api.v1.health import health_router
 from src.api.v1.about import about_router
+from src.api.v1.health import health_router
 
 router = APIRouter()
 
