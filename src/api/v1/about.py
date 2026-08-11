@@ -35,7 +35,7 @@ async def get_about() -> dict[str, Any]:
 
     return {
         "name": "Enterprise Demo Cloud App",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "description": "Simple REST API deployed to Azure with enterprise best practices",
         "timestamp": datetime.utcnow().isoformat(),
         "environment": "development",  # TODO: Load from settings

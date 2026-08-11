@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any, ParamSpec, TypeVar, cast
 
 from src.infrastructure.cache.redis_client import get_redis_client
+from src.infrastructure.observability.metrics import get_metrics
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -39,9 +40,12 @@ def cache_response(
                 return await func(*args, **kwargs)
 
             client = get_redis_client()
+            metrics = get_metrics()
             cached = await client.get(key)
             if cached is not None:
+                metrics.cache_hits_total.add(1, {"prefix": prefix})
                 return cast(R, cached)
+            metrics.cache_misses_total.add(1, {"prefix": prefix})
 
             result = await func(*args, **kwargs)
             await client.set(key, result, ttl_seconds=ttl_seconds)

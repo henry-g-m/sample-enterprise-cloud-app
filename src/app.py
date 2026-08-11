@@ -6,12 +6,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.metrics import metrics_router
 from src.api.v1.routes import router as v1_router
 from src.config.logging_config import setup_logging
 from src.config.settings import Settings
 from src.core.exceptions import register_exception_handlers
 from src.core.middleware import add_request_logging_middleware
 from src.infrastructure.cache.redis_client import close_redis_client
+from src.infrastructure.observability import setup_observability
 
 
 @asynccontextmanager
@@ -37,6 +39,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    setup_observability(app, settings)
+
     # Add middleware
     app.add_middleware(
         CORSMiddleware,
@@ -51,6 +55,7 @@ def create_app() -> FastAPI:
 
     # Include routers
     app.include_router(v1_router, prefix="/api/v1")
+    app.include_router(metrics_router)
 
     return app
 

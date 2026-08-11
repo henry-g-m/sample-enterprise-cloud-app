@@ -47,7 +47,11 @@ def _error_response(
     details: dict[str, Any] | None = None,
 ) -> JSONResponse:
     """Build the standard error envelope shared by every handler."""
-    request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    # Prefer the ID request_logging_middleware bound for this request so it
+    # matches the access log line; fall back to the header (or a fresh one)
+    # for callers that reach a handler without going through that middleware.
+    bound_request_id = structlog.contextvars.get_contextvars().get("request_id")
+    request_id = bound_request_id or request.headers.get("x-request-id") or str(uuid.uuid4())
     error_body: dict[str, Any] = {
         "code": error_code,
         "message": message,

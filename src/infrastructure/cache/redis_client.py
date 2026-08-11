@@ -30,6 +30,11 @@ class RedisClient:
             password=settings.redis_password,
             decode_responses=True,
             max_connections=20,
+            # Fail fast: an unreachable Redis should degrade requests by
+            # milliseconds, not hang them for however long the OS takes to
+            # give up on the socket.
+            socket_connect_timeout=2,
+            socket_timeout=2,
         )
         self._client: Redis = Redis(connection_pool=self._pool)
 
