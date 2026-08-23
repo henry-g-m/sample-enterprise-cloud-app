@@ -1,0 +1,28 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values.
+# `terraform plan -var-file=terraform.tfvars` or rely on the default filename.
+
+project_name = "entdemo"
+environment  = "dev"
+location     = "eastus"
+
+container_image  = "myregistry.azurecr.io/enterprise-demo-cloud-app:latest"
+container_cpu    = 0.5
+container_memory = "1Gi"
+min_replicas     = 1
+max_replicas     = 5
+
+redis_sku_name = "Standard"
+redis_family   = "C"
+redis_capacity = 1
+
+enable_apim = false
+
+apim_publisher_name  = "Enterprise Demo Cloud App"
+apim_publisher_email = "you@example.com"
+apim_sku_name        = "Developer_1"
+
+tags = {
+  project    = "enterprise-demo-cloud-app"
+  managed_by = "terraform"
+  environment = "dev"
+}

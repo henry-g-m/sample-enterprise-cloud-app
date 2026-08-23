@@ -301,24 +301,27 @@ sample-enterprise-cloud-app/
 **Objectives**: Multi-stage Docker build, local deployment simulation
 
 **Deliverables**:
-- [ ] Multi-stage Dockerfile
-- [ ] Docker image security scanning
-- [ ] docker-compose.yml with all services
-- [ ] Image size optimization (<100MB)
-- [ ] Health check configurations
+- [x] Multi-stage Dockerfile
+- [x] Docker image security scanning (Trivy scan added to CI `build` job)
+- [x] docker-compose.yml with all services
+- [x] Image size optimization
+- [x] Health check configurations (Dockerfile `HEALTHCHECK` + compose `app`/`redis` healthchecks, verified against a running container)
 
 ---
 
-### Phase 6: Azure Deployment Setup (Week 4)
+### Phase 6: Azure Deployment Setup (Week 4) ✅ DEPLOYED
 
 **Objectives**: Terraform configuration for Azure resources
 
 **Deliverables**:
-- [ ] Terraform modules for Container Apps
-- [ ] API Management configuration
-- [ ] Redis cache setup
-- [ ] Application Insights resource
-- [ ] Networking (VNet, subnets, NSGs)
+- [x] Terraform modules for Container Apps (workload-profile environment, VNet-integrated, liveness/readiness/startup probes wired to the app's health endpoints)
+- [x] API Management configuration (External VNet mode, gateway routes to the container app) — gated behind `enable_apim` (default `false`) to skip its hourly Developer-SKU billing until an auth/rate-limit policy justifies turning it on
+- [x] Azure Container Registry (Basic SKU, admin disabled) + user-assigned managed identity + `AcrPull` role assignment, so the container app pulls images without a shared password
+- [x] Redis cache setup (TLS-only, wired into the container app via secrets/env vars)
+- [x] Application Insights resource (workspace-based, connection string wired into the container app)
+- [x] Networking (VNet, subnets, NSGs) — separate delegated subnet for Container Apps and un-delegated subnet for APIM, each with NSG rules sourced from Microsoft's documented minimums
+
+Applied to a real Azure subscription (`terraform apply`, resource group `rg-entdemo-dev`, `eastus`). Along the way: the subscription needed `Microsoft.App` resource-provider registration (`az provider register -n Microsoft.App`), and the app crash-looped on first deploy because Terraform sent `ENVIRONMENT=dev` while `src/config/settings.py`'s `Settings.environment` only accepts `development|staging|production` — fixed by translating the value in a `locals` block in `container-apps.tf` rather than renaming the `environment` Terraform variable (which drives resource naming and would have forced recreating everything). The real app image is built and pushed via `az acr build` (see Phase 7) and running healthy at the container app's FQDN.
 
 ---
 
@@ -328,7 +331,7 @@ sample-enterprise-cloud-app/
 
 **Deliverables**:
 - [ ] GitHub Actions workflow for Docker build
-- [ ] Registry push to Azure Container Registry (ACR)
+- [x] Registry push to Azure Container Registry (ACR) — done manually via `az acr build` (cloud build, no local Docker required) against `acrentdemodev.azurecr.io`, tagged with the git short SHA; not yet automated in CI
 - [ ] Terraform plan/apply in CI/CD
 - [ ] Deployment approval gates
 - [ ] Smoke tests post-deployment
@@ -491,8 +494,8 @@ See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for:
 ## Status
 
 - **Iteration**: 1 (MVP)
-- **Phase**: 5 - Docker & Local Testing (NOT STARTED)
+- **Phase**: 7 - CI/CD Pipeline Enhancement (deployed manually; automating next)
 - **Target Launch**: 5 weeks
-- **Status**: Phase 1 through Phase 4 complete
+- **Status**: Phase 1 through Phase 6 complete and deployed to a live Azure subscription (`rg-entdemo-dev`, `eastus`); app image built/pushed to ACR and running healthy on Container Apps. Phase 7 remaining: wire the manual `az acr build` + `terraform apply` steps into GitHub Actions with approval gates and post-deploy smoke tests.
 
-Last Updated: 2026-08-10
+Last Updated: 2026-08-23

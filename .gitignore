@@ -135,3 +135,7 @@ dmypy.json
 .env.*.local
 terraform.tfstate*
 .terraform/
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
