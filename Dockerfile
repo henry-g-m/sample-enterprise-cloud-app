@@ -29,8 +29,9 @@ RUN useradd -m -u 1000 appuser
 
 WORKDIR /app
 
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install runtime dependencies, upgrading OS packages to pick up any
+# security fixes Debian has shipped since the base image was built
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
