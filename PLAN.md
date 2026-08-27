@@ -330,11 +330,15 @@ Applied to a real Azure subscription (`terraform apply`, resource group `rg-entd
 **Objectives**: Full deployment pipeline with testing gates
 
 **Deliverables**:
-- [ ] GitHub Actions workflow for Docker build
-- [x] Registry push to Azure Container Registry (ACR) — done manually via `az acr build` (cloud build, no local Docker required) against `acrentdemodev.azurecr.io`, tagged with the git short SHA; not yet automated in CI
-- [ ] Terraform plan/apply in CI/CD
-- [ ] Deployment approval gates
-- [ ] Smoke tests post-deployment
+- [x] GitHub Actions workflow for Docker build/push — `.github/workflows/cd-azure.yml`, `build-and-push` job runs `az acr build` against `acrentdemodev.azurecr.io`, tagged with the git SHA
+- [x] Registry push to Azure Container Registry (ACR) — now automated in CI (was previously manual, see Phase 6 notes)
+- [x] Terraform plan/apply in CI/CD — remote state backend (`sttfstateentdemo` storage account in `rg-entdemo-tfstate`, `use_azuread_auth`), OIDC federated login (no stored credentials), `terraform-plan-pr` job plans read-only on PRs touching `infrastructure/terraform/**`, `terraform-apply-infra` + `deploy-image` jobs apply on push to `master`
+- [x] Deployment approval gates — GitHub Environment `production` requires manual approval (reviewer: repo owner) before any job that can create/modify/destroy Azure resources runs
+- [x] Smoke tests post-deployment — `smoke-test` job polls `/api/v1/health/live`, `/api/v1/health/ready`, `/api/v1/about` on the deployed container app FQDN, retrying for ~100s before failing the run
+
+Bootstrapped this session (one-time, outside Terraform since it can't create its own backend): resource group `rg-entdemo-tfstate` + storage account `sttfstateentdemo` for remote state; Azure AD app registration `gh-actions-entdemo` with OIDC federated credentials scoped to the `master` branch, the `production` GitHub Environment, and `pull_request` (no client secret stored anywhere); `Contributor` on `rg-entdemo-dev` + `Storage Blob Data Contributor` on the state storage account, both scoped to just those resource groups. Local dev now points at the same backend via `infrastructure/terraform/backend.hcl` (gitignored; see `backend.hcl.example`).
+
+Not yet done: the live Azure resources were destroyed after the Phase 6 demo/load-test session to stop hourly billing (Redis Standard C1), so the next push to `master` (or manual `workflow_dispatch`) will recreate everything from scratch through the new pipeline — that first real run, with its approval gate, is still pending.
 
 ---
 
@@ -494,8 +498,8 @@ See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for:
 ## Status
 
 - **Iteration**: 1 (MVP)
-- **Phase**: 7 - CI/CD Pipeline Enhancement (deployed manually; automating next)
+- **Phase**: 7 - CI/CD Pipeline Enhancement (pipeline built; first automated deploy run pending)
 - **Target Launch**: 5 weeks
-- **Status**: Phase 1 through Phase 6 complete and deployed to a live Azure subscription (`rg-entdemo-dev`, `eastus`); app image built/pushed to ACR and running healthy on Container Apps. Phase 7 remaining: wire the manual `az acr build` + `terraform apply` steps into GitHub Actions with approval gates and post-deploy smoke tests.
+- **Status**: Phase 1 through Phase 6 complete. Phase 7's CI/CD pipeline (`.github/workflows/cd-azure.yml`) is now in place: OIDC-authenticated Terraform plan/apply, ACR build/push, an approval-gated `production` GitHub Environment, and post-deploy smoke tests. Live Azure resources were torn down after the Phase 6 demo to avoid idle billing, so they don't exist right now — the next push to `master` (or a manual `workflow_dispatch` run) will recreate them via the new pipeline instead of the old manual `az acr build` + local `terraform apply` steps.
 
-Last Updated: 2026-08-23
+Last Updated: 2026-08-26

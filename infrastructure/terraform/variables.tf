@@ -108,6 +108,19 @@ variable "apim_sku_name" {
   default     = "Developer_1"
 }
 
+# --- Cost management --------------------------------------------------------
+
+variable "budget_amount" {
+  description = "Monthly budget amount (USD) for this resource group, used by the Cost Management alert."
+  type        = number
+  default     = 10
+}
+
+variable "budget_alert_emails" {
+  description = "Email addresses notified when the budget crosses a threshold."
+  type        = list(string)
+}
+
 # --- Shared -----------------------------------------------------------------
 
 variable "tags" {

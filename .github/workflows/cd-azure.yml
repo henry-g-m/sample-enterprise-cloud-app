@@ -1,0 +1,206 @@
+name: CD - Azure
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/**'
+      - 'Dockerfile'
+      - 'requirements*.txt'
+      - 'infrastructure/terraform/**'
+      - '.github/workflows/cd-azure.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'infrastructure/terraform/**'
+  workflow_dispatch: {}
+
+concurrency:
+  group: cd-azure-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_DIR: infrastructure/terraform
+  TF_BACKEND_ARGS: >-
+    -backend-config=resource_group_name=${{ vars.TF_STATE_RG }}
+    -backend-config=storage_account_name=${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+    -backend-config=container_name=${{ vars.TF_STATE_CONTAINER }}
+    -backend-config=key=entdemo-dev.tfstate
+
+jobs:
+  # Read-only plan on PRs that touch Terraform, so infra changes are visible
+  # in review before merge. No environment/approval gate -- it never applies.
+  terraform-plan-pr:
+    name: Terraform Plan (PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~> 1.9'
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init ${{ env.TF_BACKEND_ARGS }}
+
+      - name: Terraform plan
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform plan -input=false
+
+  # Builds and applies the baseline infra (using whatever container_image is
+  # already in state -- a placeholder on first ever run) so the ACR exists
+  # before we try to push an image to it.
+  terraform-apply-infra:
+    name: Terraform Apply (infra)
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~> 1.9'
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init ${{ env.TF_BACKEND_ARGS }}
+
+      - name: Terraform apply
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -input=false -auto-approve
+
+  build-and-push:
+    name: Build & push image to ACR
+    needs: terraform-apply-infra
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push via ACR Tasks
+        id: image
+        run: |
+          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/enterprise-demo-cloud-app:${{ github.sha }}"
+          az acr build --registry ${{ vars.ACR_NAME }} --image "enterprise-demo-cloud-app:${{ github.sha }}" .
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+  # Re-applies Terraform with the newly built image tag so Terraform's
+  # desired state stays authoritative (an `az containerapp update` here
+  # would work too, but would drift out from under the next `terraform
+  # plan`).
+  deploy-image:
+    name: Terraform Apply (image rollout)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~> 1.9'
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init ${{ env.TF_BACKEND_ARGS }}
+
+      - name: Terraform apply (new image)
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform apply -input=false -auto-approve \
+            -var="container_image=${{ needs.build-and-push.outputs.image }}"
+
+  smoke-test:
+    name: Post-deploy smoke test
+    needs: deploy-image
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~> 1.9'
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init ${{ env.TF_BACKEND_ARGS }}
+
+      - name: Get container app FQDN
+        id: fqdn
+        working-directory: ${{ env.TF_DIR }}
+        run: echo "fqdn=$(terraform output -raw container_app_fqdn)" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test health endpoints
+        run: |
+          set -e
+          BASE="https://${{ steps.fqdn.outputs.fqdn }}"
+          echo "Testing against $BASE"
+
+          for i in $(seq 1 10); do
+            if curl -sf -o /dev/null "$BASE/api/v1/health/live"; then
+              echo "Liveness OK"
+              break
+            fi
+            if [ "$i" -eq 10 ]; then
+              echo "Liveness check failed after 10 attempts" >&2
+              exit 1
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+
+          for i in $(seq 1 10); do
+            if curl -sf "$BASE/api/v1/health/ready" | grep -Eq '"ready":[[:space:]]*true'; then
+              echo "Readiness OK"
+              break
+            fi
+            if [ "$i" -eq 10 ]; then
+              echo "Readiness check failed after 10 attempts" >&2
+              exit 1
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+
+          curl -sf -o /dev/null "$BASE/api/v1/about"
+          echo "About endpoint OK"

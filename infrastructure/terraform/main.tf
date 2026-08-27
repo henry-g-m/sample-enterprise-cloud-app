@@ -17,11 +17,16 @@ terraform {
     }
   }
 
-  # No backend is configured here on purpose: local state is fine for a demo,
-  # but a shared environment should use a remote backend (e.g. "azurerm" with
-  # a state storage account) supplied via `-backend-config` at init time so
-  # credentials/state location aren't hardcoded into version control.
-  # backend "azurerm" {}
+  # Remote state in Azure Blob Storage (Phase 7). Values are non-secret
+  # (resource group, storage account, container, blob key) and are supplied
+  # via `-backend-config` at init time -- both from CI (repo variables) and
+  # locally (infrastructure/terraform/backend.hcl, gitignored, see
+  # backend.hcl.example) -- so nothing environment-specific is hardcoded here.
+  # Auth uses the caller's Azure AD identity (az login locally, OIDC in CI)
+  # rather than a storage account key.
+  backend "azurerm" {
+    use_azuread_auth = true
+  }
 }
 
 provider "azurerm" {
