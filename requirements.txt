@@ -16,3 +16,9 @@ prometheus-client==0.26.0
 azure-monitor-opentelemetry==1.8.9
 python-dotenv==1.2.2
 httpx==0.28.1
+
+# Transitive deps pinned up from what azure-monitor-opentelemetry/msal pull
+# in by default, to pick up fixes for known CVEs (Trivy CI scan):
+# GHSA-6v7p-g79w-8964 (msgpack), CVE-2025-47273 (setuptools)
+msgpack>=1.2.1
+setuptools>=78.1.1
