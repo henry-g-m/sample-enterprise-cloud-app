@@ -25,7 +25,7 @@ gh run watch                                  # live-follow the latest run
 gh run view --web                             # open it in the browser
 
 
-==Re-loading the applicati on locally===
+==Re-loading the application locally===
 With docker compose, you can re-load the application without restarting the container. This is useful for development when you make changes to the code.
    docker compose restart app
 With uvicorn
@@ -47,3 +47,73 @@ With uvicorn
 ├────────────┼───────────────────────┼────────────────────────────────────────────────────────────────┤
 │ Grafana    │ http://localhost:3000 │ admin / admin                                                  │
 └────────────┴───────────────────────┴────────────────────────────────────────────────────────────────┘
+
+== Cloud Deployment ==
+
+Terraform
+Installed with:
+winget install --id Hashicorp.Terraform
+PATH=C:\Users\enriq\AppData\Local\Microsoft\WinGet\Packages\Hashicorp.Terraform_Microsoft.Winget.Source_8wekyb3d8bbwe";
+
+TODO: Install terraform and read documentation. - done
+TODO: Disabled APIM for now, it has a cost and we don't use it enough.
+
+Azure Deployment  (using enrique.garcia.mantilla@gmail.com subscription)
+  Cost note (unchanged from before): APIM Developer + Redis Standard C1 are the two line items that bill by the hour regardless of traffic
+
+  20 resources to add, 0 to change, 0 to destroy
+
+  Networking:
+    1 VNet (10.10.0.0/16),
+    2 subnets (Container Apps delegated /27, APIM /27),
+    2 NSGs with rules pulled from Microsoft's documented minimums.
+
+  Compute:
+    Container Apps environment (Consumption workload profile) + the Container App itself, currently pointed at the placeholder image docker.io/library/hello-world:latest —
+  liveness/readiness/startup probes already wired to your app's real health endpoints, so once we swap in the real image it should come up healthy immediately.
+
+  Registry (new, this session):
+    Azure Container Registry acrentdemodev (Basic SKU, admin disabled) + a user-assigned managed identity + an AcrPull role assignment, so the Container App can pull
+  private images without any shared password.
+
+  Data/Observability:
+    Azure Cache for Redis (Standard C1, TLS-only),
+    Log Analytics workspace,
+    Application Insights (workspace-based).
+
+  Gateway: API Management (Developer SKU, VNet-injected)
+
+  Deployment
+  https://ca-entdemo-dev.gentlewater-86a50e22.eastus.azurecontainerapps.io/api/v1/health/live
+  https://ca-entdemo-dev.gentlewater-86a50e22.eastus.azurecontainerapps.io/api/v1/about
+
+Deploy infrastructure with Terraform:
+terraform init
+terraform plan
+terraform apply
+
+Destroy infrastructure with Terraform:
+terraform destroy
+
+
+  = Load Testing =
+To run it yourself (from venv command line):
+# Interactive web UI (http://localhost:8089) — adjust user count live
+locust -f tests/load/locustfile.py --host https://ca-entdemo-dev.gentlewater-86a50e22.eastus.azurecontainerapps.io
+
+= GitHub authentications against Azure =
+App registration
+gh-actions-entdemo is an identity in Azure AD that GitHub Actions can log in as. Think of it as a "robot user" that Terraform/az acr build run as when CI executes — that's what lets a workflow run create/modify real Azure resources.
+
+OIDC federated credentials (what I set up instead)
+No password exists at all. Instead, Azure AD is told: "trust tokens issued by GitHub's OIDC provider, but only tokens whose subject claim matches one of these exact strings":
+- repo:henry-g-m/sample-enterprise-cloud-app:ref:refs/heads/master
+- repo:henry-g-m/sample-enterprise-cloud-app:environment:production
+- repo:henry-g-m/sample-enterprise-cloud-app:pull_request
+
+When a GitHub Actions job runs, GitHub mints a short-lived signed token describing exactly what's running (this repo, this branch/environment/event). The azure/login step hands that token to Azure, Azure checks the signature and the subject string against the three entries above, and if it matches, issues a short-lived Azure access token for that job only.
+
+
+= Docker image build and scan =
+    docker build -t demo-app:ci .
+    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock  aquasec/trivy:0.70.0 image  --format table  --severity CRITICAL,HIGH  --ignore-unfixed  --exit-code 1  demo-app:ci
