@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from opentelemetry import trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
+from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
@@ -48,3 +49,4 @@ def instrument_app(app: FastAPI) -> None:
     """
     FastAPIInstrumentor.instrument_app(app)
     LoggingInstrumentor().instrument(set_logging_format=False)
+    RedisInstrumentor().instrument()

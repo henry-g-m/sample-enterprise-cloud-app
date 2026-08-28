@@ -1,0 +1,14 @@
+# Local dev backend config for `terraform init -backend-config=backend.hcl`.
+# Copy to backend.hcl (gitignored) and run:
+#   terraform init -backend-config=backend.hcl
+#
+# Auth uses your `az login` identity (use_azuread_auth = true in main.tf), so
+# you also need the "Storage Blob Data Contributor" role on the storage
+# account below. CI uses the same backend via `-backend-config` flags built
+# from repo variables (see .github/workflows/cd-azure.yml) instead of this
+# file.
+
+resource_group_name = "rg-entdemo-tfstate"
+storage_account_name = "sttfstateentdemo"
+container_name       = "tfstate"
+key                  = "entdemo-dev.tfstate"

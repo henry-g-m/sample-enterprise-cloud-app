@@ -301,24 +301,27 @@ sample-enterprise-cloud-app/
 **Objectives**: Multi-stage Docker build, local deployment simulation
 
 **Deliverables**:
-- [ ] Multi-stage Dockerfile
-- [ ] Docker image security scanning
-- [ ] docker-compose.yml with all services
-- [ ] Image size optimization (<100MB)
-- [ ] Health check configurations
+- [x] Multi-stage Dockerfile
+- [x] Docker image security scanning (Trivy scan added to CI `build` job)
+- [x] docker-compose.yml with all services
+- [x] Image size optimization
+- [x] Health check configurations (Dockerfile `HEALTHCHECK` + compose `app`/`redis` healthchecks, verified against a running container)
 
 ---
 
-### Phase 6: Azure Deployment Setup (Week 4)
+### Phase 6: Azure Deployment Setup (Week 4) ✅ DEPLOYED
 
 **Objectives**: Terraform configuration for Azure resources
 
 **Deliverables**:
-- [ ] Terraform modules for Container Apps
-- [ ] API Management configuration
-- [ ] Redis cache setup
-- [ ] Application Insights resource
-- [ ] Networking (VNet, subnets, NSGs)
+- [x] Terraform modules for Container Apps (workload-profile environment, VNet-integrated, liveness/readiness/startup probes wired to the app's health endpoints)
+- [x] API Management configuration (External VNet mode, gateway routes to the container app) — gated behind `enable_apim` (default `false`) to skip its hourly Developer-SKU billing until an auth/rate-limit policy justifies turning it on
+- [x] Azure Container Registry (Basic SKU, admin disabled) + user-assigned managed identity + `AcrPull` role assignment, so the container app pulls images without a shared password
+- [x] Redis cache setup (TLS-only, wired into the container app via secrets/env vars)
+- [x] Application Insights resource (workspace-based, connection string wired into the container app)
+- [x] Networking (VNet, subnets, NSGs) — separate delegated subnet for Container Apps and un-delegated subnet for APIM, each with NSG rules sourced from Microsoft's documented minimums
+
+Applied to a real Azure subscription (`terraform apply`, resource group `rg-entdemo-dev`, `eastus`). Along the way: the subscription needed `Microsoft.App` resource-provider registration (`az provider register -n Microsoft.App`), and the app crash-looped on first deploy because Terraform sent `ENVIRONMENT=dev` while `src/config/settings.py`'s `Settings.environment` only accepts `development|staging|production` — fixed by translating the value in a `locals` block in `container-apps.tf` rather than renaming the `environment` Terraform variable (which drives resource naming and would have forced recreating everything). The real app image is built and pushed via `az acr build` (see Phase 7) and running healthy at the container app's FQDN.
 
 ---
 
@@ -327,11 +330,15 @@ sample-enterprise-cloud-app/
 **Objectives**: Full deployment pipeline with testing gates
 
 **Deliverables**:
-- [ ] GitHub Actions workflow for Docker build
-- [ ] Registry push to Azure Container Registry (ACR)
-- [ ] Terraform plan/apply in CI/CD
-- [ ] Deployment approval gates
-- [ ] Smoke tests post-deployment
+- [x] GitHub Actions workflow for Docker build/push — `.github/workflows/cd-azure.yml`, `build-and-push` job runs `az acr build` against `acrentdemodev.azurecr.io`, tagged with the git SHA
+- [x] Registry push to Azure Container Registry (ACR) — now automated in CI (was previously manual, see Phase 6 notes)
+- [x] Terraform plan/apply in CI/CD — remote state backend (`sttfstateentdemo` storage account in `rg-entdemo-tfstate`, `use_azuread_auth`), OIDC federated login (no stored credentials), `terraform-plan-pr` job plans read-only on PRs touching `infrastructure/terraform/**`, `terraform-apply-infra` + `deploy-image` jobs apply on push to `master`
+- [x] Deployment approval gates — GitHub Environment `production` requires manual approval (reviewer: repo owner) before any job that can create/modify/destroy Azure resources runs
+- [x] Smoke tests post-deployment — `smoke-test` job polls `/api/v1/health/live`, `/api/v1/health/ready`, `/api/v1/about` on the deployed container app FQDN, retrying for ~100s before failing the run
+
+Bootstrapped this session (one-time, outside Terraform since it can't create its own backend): resource group `rg-entdemo-tfstate` + storage account `sttfstateentdemo` for remote state; Azure AD app registration `gh-actions-entdemo` with OIDC federated credentials scoped to the `master` branch, the `production` GitHub Environment, and `pull_request` (no client secret stored anywhere); `Contributor` on `rg-entdemo-dev` + `Storage Blob Data Contributor` on the state storage account, both scoped to just those resource groups. Local dev now points at the same backend via `infrastructure/terraform/backend.hcl` (gitignored; see `backend.hcl.example`).
+
+Not yet done: the live Azure resources were destroyed after the Phase 6 demo/load-test session to stop hourly billing (Redis Standard C1), so the next push to `master` (or manual `workflow_dispatch`) will recreate everything from scratch through the new pipeline — that first real run, with its approval gate, is still pending.
 
 ---
 
@@ -491,8 +498,8 @@ See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for:
 ## Status
 
 - **Iteration**: 1 (MVP)
-- **Phase**: 5 - Docker & Local Testing (NOT STARTED)
+- **Phase**: 7 - CI/CD Pipeline Enhancement (pipeline built; first automated deploy run pending)
 - **Target Launch**: 5 weeks
-- **Status**: Phase 1 through Phase 4 complete
+- **Status**: Phase 1 through Phase 6 complete. Phase 7's CI/CD pipeline (`.github/workflows/cd-azure.yml`) is now in place: OIDC-authenticated Terraform plan/apply, ACR build/push, an approval-gated `production` GitHub Environment, and post-deploy smoke tests. Live Azure resources were torn down after the Phase 6 demo to avoid idle billing, so they don't exist right now — the next push to `master` (or a manual `workflow_dispatch` run) will recreate them via the new pipeline instead of the old manual `az acr build` + local `terraform apply` steps.
 
-Last Updated: 2026-08-10
+Last Updated: 2026-08-26

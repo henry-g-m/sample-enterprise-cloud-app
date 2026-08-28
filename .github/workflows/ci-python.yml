@@ -123,5 +123,24 @@ jobs:
         with:
           context: .
           push: false
+          load: true
+          tags: demo-app:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: demo-app:ci
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+          # pip vendors its own internal CycloneDX SBOM
+          # (pip/_vendor/bom.cdx.json), a stale snapshot from whenever that
+          # pip release shipped. Trivy auto-trusts any SBOM-shaped file it
+          # finds in the image over its own filesystem scan, so it reports
+          # pip's private vendored versions (e.g. old msgpack/setuptools) as
+          # if they were our installed packages. Skip that one file so Trivy
+          # scans site-packages directly instead.
+          skip-files: '**/pip/_vendor/bom.cdx.json'

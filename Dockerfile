@@ -14,10 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements
 COPY requirements.txt .
-COPY requirements-dev.txt .
 
 # Create wheels
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /build/wheels -r requirements-dev.txt
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /build/wheels -r requirements.txt
 
 
 # ============================================================================
@@ -30,18 +29,18 @@ RUN useradd -m -u 1000 appuser
 
 WORKDIR /app
 
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install runtime dependencies, upgrading OS packages to pick up any
+# security fixes Debian has shipped since the base image was built
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy wheels from builder
 COPY --from=builder /build/wheels /wheels
 COPY --from=builder /build/requirements.txt .
-COPY --from=builder /build/requirements-dev.txt .
 
 # Install Python dependencies from wheels
-RUN pip install --no-cache /wheels/*
+RUN pip install --no-cache /wheels/* && rm -rf /wheels
 
 # Copy application code
 COPY --chown=appuser:appuser src/ ./src/
@@ -56,7 +55,7 @@ USER appuser
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/api/v1/health/live')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live', timeout=2)" || exit 1
 
 # Expose port
 EXPOSE 8000
