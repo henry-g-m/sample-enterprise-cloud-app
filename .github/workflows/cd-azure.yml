@@ -30,6 +30,15 @@ env:
     -backend-config=storage_account_name=${{ vars.TF_STATE_STORAGE_ACCOUNT }}
     -backend-config=container_name=${{ vars.TF_STATE_CONTAINER }}
     -backend-config=key=entdemo-dev.tfstate
+  # Terraform's azurerm backend/provider refuse to piggyback on an
+  # az-login-as-Service-Principal CLI session (the azure/login step below
+  # produces exactly that). These make Terraform authenticate natively via
+  # OIDC instead, using the same GitHub-issued id-token azure/login uses --
+  # unrelated to the az CLI session, so it doesn't matter which runs first.
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: true
 
 jobs:
   # Read-only plan on PRs that touch Terraform, so infra changes are visible
