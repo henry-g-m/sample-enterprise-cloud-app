@@ -39,6 +39,12 @@ env:
   ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
   ARM_USE_OIDC: true
+  # Required variables with no default (apim_publisher_email,
+  # budget_alert_emails) -- normally supplied by the gitignored local
+  # terraform.tfvars, which doesn't exist in CI. TF_VAR_* env vars are
+  # Terraform's standard way to set variables outside a tfvars file.
+  TF_VAR_apim_publisher_email: ${{ vars.NOTIFICATION_EMAIL }}
+  TF_VAR_budget_alert_emails: '["${{ vars.NOTIFICATION_EMAIL }}"]'
 
 jobs:
   # Read-only plan on PRs that touch Terraform, so infra changes are visible
