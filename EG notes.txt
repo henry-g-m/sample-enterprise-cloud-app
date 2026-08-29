@@ -86,6 +86,7 @@ Azure Deployment  (using enrique.garcia.mantilla@gmail.com subscription)
   Deployment
   https://ca-entdemo-dev.gentlewater-86a50e22.eastus.azurecontainerapps.io/api/v1/health/live
   https://ca-entdemo-dev.gentlewater-86a50e22.eastus.azurecontainerapps.io/api/v1/about
+  https://ca-entdemo-dev.ambitiouswater-d567181b.eastus.azurecontainerapps.io/api/v1/health/ready
 
 Deploy infrastructure with Terraform:
 terraform init
@@ -117,3 +118,10 @@ When a GitHub Actions job runs, GitHub mints a short-lived signed token describi
 = Docker image build and scan =
     docker build -t demo-app:ci .
     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock  aquasec/trivy:0.70.0 image  --format table  --severity CRITICAL,HIGH  --ignore-unfixed  --exit-code 1  demo-app:ci
+
+
+ = Log monitor/access in Azure =
+  1) Live tail in Azure CLI
+    az containerapp logs show --name ca-entdemo-dev --resource-group rg-entdemo-dev --follow
+ 2) Live tail in Azure portal (Container Apps > your app > Logs)
+ 3) Application Insights ( Transaction search, Failures, Performance )

@@ -1,0 +1,40 @@
+# Virtual environments / dependencies
+venv/
+.venv/
+env/
+node_modules/
+
+# Python caches and artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+coverage.xml
+htmlcov/
+
+# Terraform state and local overrides (may contain sensitive values)
+infrastructure/terraform/.terraform/
+infrastructure/terraform/*.tfstate
+infrastructure/terraform/*.tfstate.*
+infrastructure/terraform/*.tfvars
+infrastructure/terraform/backend.hcl
+!infrastructure/terraform/*.tfvars.example
+!infrastructure/terraform/backend.hcl.example
+
+# Env files with real secrets
+.env
+.env.local
+.env.*.local
+
+# IDE / editor project files
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+crash.log
+crash.*.log

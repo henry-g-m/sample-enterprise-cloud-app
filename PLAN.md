@@ -409,15 +409,26 @@ Phase 1 (Foundation)
 
 ### Iteration 2: Event Ticket Sales Application
 
-**Features**:
-- Venue definition (layout, seat count, pricing)
-- Inventory/seat availability
-- Shopping cart functionality
-- Inventory holds (temporary reservations)
+Design status: **data model and API surface agreed** — see
+[docs/ITERATION2_DESIGN.md](docs/ITERATION2_DESIGN.md) for the full design
+(entities, concurrency approach, service boundaries). Not yet implemented.
+
+**Features** (superseded/detailed by the design doc above; kept here as the
+original high-level sketch):
+- Venue definition (single venue, fixed seat layout, seeded once)
+- Inventory/seat availability, via a `Ticket.status` state machine
+- Shopping cart functionality (separate `Cart` entity, cookie-based session)
+- Inventory holds (temporary reservations, no background expiry job —
+  reclaimed lazily)
 - Ticket assignment
 - PostgreSQL database
-- Event-driven architecture
-- Azure Service Bus for event processing
+- Four services: Browsing, Cart, Checkout, Admin — sharing one database
+  directly (a deliberate simplification; the design doc explains what a
+  "correct" microservices split would look like and why it's out of scope)
+- ~~Event-driven architecture / Azure Service Bus~~ — decided against for
+  this iteration (see design doc's "Architecture decision" section); would
+  only become relevant if a future iteration specifically wants to learn
+  saga/CQRS patterns
 
 **Technology Additions**:
 - SQLAlchemy ORM
